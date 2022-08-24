@@ -16,7 +16,7 @@ hardware initilization
 tx initialization
 <br><br>
 
-  NOTE to myself :i feel like i need to focus even more on programming , i like when people get mad at me working when i should be partying.
+  NOTE to myself :i feel like i need to focus even more on programming , i like when people get mad at me .
 <h1>Resources</h1>
 this one is a bit problematic.
 <br>
