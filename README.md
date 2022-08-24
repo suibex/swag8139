@@ -17,7 +17,12 @@ tx initialization
 <br><br>
 
   NOTE to myself :i feel like i need to focus even more, i like when people get mad at me working when i should be partying.
-
+<h1>Resources</h1>
+this one is a bit problematic.
+<br>
+i tried to understand linux network stack by reversing 8139too.ko , and it kind of worked.
+<br>
+also i took a look and 8139cp.ko 
 </b>
 <h1>dmesg output when i execute - "ifconfig eth0 up"</h1>
 <br>
