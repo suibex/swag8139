@@ -1,6 +1,6 @@
 /*
  *
- *	Realtek RTL 8139 networking driver.
+ *	Realtek RTL8139 networking driver.
  *
  *	Written by: Gavrilo Palalic
  *		
