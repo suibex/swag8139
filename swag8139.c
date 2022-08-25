@@ -107,7 +107,7 @@ MODULE_VERSION(DRIVER_VER);
 typedef struct swag8139{
 	struct pci_dev *dev;
 	void *mmio;
-	unsigned long regs_len; /* length of I/O or MMI/O region */
+	unsigned long regs_len;
         unsigned int tx_flag;
         unsigned int cur_tx;
         unsigned int dirty_tx;
@@ -158,15 +158,9 @@ static irqreturn_t rtl_handler(int irq, void *dev_instance){
     	swag8139_dev *tp = netdev_priv(dev);
         void *ioaddr = tp->mmio;
         unsigned short isr = readw(ioaddr + ISR);
-        
-        /* clear all interrupt.
-         * Specs says reading ISR clears all interrupts and writing
-         * has no effect. But this does not seem to be case. I keep on
-         * getting interrupt unless I forcibly clears all interrupt :-(
-         */
+      
 
         writew(0xffff, ioaddr + ISR);
-		printk("\nreceived interrupt.");
         if((isr & TxOK) || (isr & TxErr)) 
         {
                while((tp->dirty_tx != tp->cur_tx) || netif_queue_stopped(dev))
@@ -175,10 +169,10 @@ static irqreturn_t rtl_handler(int irq, void *dev_instance){
                                readl(ioaddr + TSD0 + tp->dirty_tx * sizeof(int));
 
                        if(!(txstatus & (TxStatOK | TxAborted | TxUnderrun)))
-                               break; /* yet not transmitted */
+                               break;
 
                        if(txstatus & TxStatOK) {
-				printk("\n good send happened.");
+				
                         	tp->stats.tx_bytes += (txstatus & 0x1fff);
                        		tp->stats.tx_packets++;
 				tp->stats.collisions+= (txstatus >>24 ) & 15;
@@ -201,13 +195,12 @@ static irqreturn_t rtl_handler(int irq, void *dev_instance){
         }
 
         if(isr & RxErr) {
-               /* TODO: Need detailed analysis of error status */
                
                tp->stats.rx_errors++;
         }
 
         if(isr & RxOK) {
-               printk("\nreceived RX");
+ 
                while((readb(ioaddr + CMDR) & RxBufEmpty) == 0)
                {
                        unsigned int rx_status;
@@ -218,15 +211,10 @@ static irqreturn_t rtl_handler(int irq, void *dev_instance){
                        if(tp->cur_rx > RX_BUF_LEN)
                                tp->cur_rx = tp->cur_rx % RX_BUF_LEN;
         
-                       /* TODO: need to convert rx_status from little to host endian
-                        * XXX: My CPU is little endian only :-)
-                        */
                        rx_status = *(unsigned int*)(tp->rx_ring + tp->cur_rx);
                        rx_size = rx_status >> 16;
                        
-                       /* first two bytes are receive status register 
-                        * and next two bytes are frame length
-                        */
+                
                        pkt_size = rx_size - 4;
 
                        /* hand over packet to system */
@@ -234,15 +222,13 @@ static irqreturn_t rtl_handler(int irq, void *dev_instance){
                        if (skb) {
 							
                                skb->dev = dev;
-                               skb_reserve (skb, 2); /* 16 byte align the IP fields */
+                               skb_reserve (skb, 2);
 
                                skb_copy_to_linear_data(skb,&tp->rx_ring+tp->cur_rx+4,pkt_size);
                                skb_put (skb, pkt_size);
                                skb->protocol = eth_type_trans (skb, dev);
-                               //netif_rx (skb);
-								netif_receive_skb(skb);
-//                               dev->last_rx = jiffies;
-
+				netif_receive_skb(skb);
+//                             
                                tp->stats.rx_bytes += pkt_size;
                                tp->stats.rx_packets++;
                        } 
@@ -273,8 +259,6 @@ static void init_ring(struct net_device* dev){
 		for(i =0;i<4;i++){
 			tmp->tx_buf[i]=&tmp->tx_bufs[i*1536];
 		}
-		printk("\nHL:%x",tmp->dev->vendor);
-
 }
 #define CFG93 0x50
 enum Cfg9346Bits {
@@ -318,14 +302,11 @@ static void rtl_start_hw(struct net_device* dev){
 }
 
 static int rtl_open(struct net_device * dev){
-	printk("rtl_open() called");
-	
 	swag8139_dev *temp = netdev_priv(dev);
 	if(request_irq(dev->irq,rtl_handler,0,dev->name,dev)){
 		printk("swag8139: could not request irq.");
 		return -1;
 	}
-	printk("\nallocated dumbass");
 	temp->tx_bufs =pci_alloc_consistent(temp->dev,TOTAL_TX_BUF_SIZE,&temp->tx_bufs_dma);
 	if(!temp->tx_bufs){
 		printk("swag8139: could not create DMA mem.");
@@ -337,23 +318,7 @@ static int rtl_open(struct net_device * dev){
 		printk("swag8139: could not allocate DMA for RX");
 		return -12;
 	}
-	//TODO
-	/*
-	if((!tp->tx_bufs)  || (!tp->rx_ring)) {
-        free_irq(dev->irq, dev);
-
-        if(tp->tx_bufs) {
-                       pci_free_consistent(tp->pci_dev, TOTAL_TX_BUF_SIZE, tp->tx_bufs, tp->tx_bufs_dma);
-                       tp->tx_bufs = NULL;
-               }
-        if(tp->rx_ring) {
-                       pci_free_consistent(tp->pci_dev, RX_BUF_TOT_LEN, tp->rx_ring, tp->rx_ring_dma);
-                       tp->rx_ring = NULL;
-               }
-        return -ENOMEM;
-}
-      
-	*/
+	
 	temp->tx_flag=0;		
 	init_ring(dev);
 	rtl_start_hw(dev);
@@ -371,9 +336,6 @@ static int rtl_stop(struct net_device * dev){
 
 }
 static int rtl_xmit(struct sk_buff *skb,struct net_device * dev){
-	printk("rtl_xmit() clld");
-	
-
 	swag8139_dev *tm = netdev_priv(dev);
 	void __iomem *addr = tm->mmio;
 	unsigned int entry = tm->cur_tx;
@@ -430,17 +392,11 @@ static int rtlprobe(struct pci_dev *device ,const  struct pci_device_id *id){
 		return -12;
 	}
 
-	//TODO , create struct device*
-	//SET_NETDEV_DEV(net,	device);
-
 	swag = netdev_priv(loader);
 	swag->dev = device;
 
 	net = loader;
 	memcpy(net,loader,sizeof(*swag));
-
-
-	//init other shit
 
 	pci_set_drvdata(device,swag);
 
@@ -463,9 +419,6 @@ static int rtlprobe(struct pci_dev *device ,const  struct pci_device_id *id){
 		return -12;
 	}
 	swag->mmio =ioremap(mmio_start,mmio_len);
-	//taken from 8139too.ko
-	//swag->mmio = pci_iomap(device,0,mmio_len);
-
 	net->base_addr = (long unsigned int)swag->mmio;
 	
 	if(!swag->mmio || !net->base_addr){
@@ -479,7 +432,7 @@ static int rtlprobe(struct pci_dev *device ,const  struct pci_device_id *id){
 	outb(0x10,swag->mmio+0x37);
 	while(!(inb(swag->mmio+0x37)& 0x10)){
 	}
-	//device has been reset if you proceed onto next shit
+	//device has been reset if you proceed onto next step
 
 	printk("swag8139: stage 2: registering netdev.");
 
@@ -490,21 +443,11 @@ static int rtlprobe(struct pci_dev *device ,const  struct pci_device_id *id){
 		net->broadcast[i] = 0xff;
 	}
 	
-	//testing some shit from other drivers.
-	//
 	net->hard_header_len=14;
 	//char *drv = "jocadoca";
 	//memcpy(net->name,drv,8);
-	
-
 	net->irq = device->irq;
 	net->netdev_ops = &swag_ndo;
-	//net->state =	__LINK_STATE_PRESENT;
-
-
-	//registering device into our network stack
-	//its so much better to use this struct net_device than to have to recompile the whole fucking kernel with changes to use my driver.
-	//SMART LINUS!
 	if(register_netdev(net)){
 		printk("swag8139: [NET]  could not register network device :(");
 		return -12;
